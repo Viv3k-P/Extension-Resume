@@ -58,16 +58,28 @@ document.addEventListener('DOMContentLoaded', () => {
   addToJobBtn.addEventListener('click', async () => {
     const companyName = document.getElementById('companyName').value;
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const currentLink = tabs[0].url;
+    const currentTab = tabs[0];
+    const currentLink = currentTab.url;
     document.getElementById('companyLink').value = currentLink;
-    await browser.runtime.sendMessage({ action: 'clearSelectedText' });
-    const data = {
-      text: '',
+    const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
+    setLoading(true);
+    const response = await browser.runtime.sendMessage({
+      action: 'addJob',
       companyName,
       companyLink: currentLink,
-      type: 'add-to-job',
-    };
-    sendToApi(data);
+      tabId: currentTab.id,
+      fallbackText: selectedText,
+    });
+    setLoading(false);
+    if (response?.success) {
+      document.getElementById('companyName').value = '';
+      document.getElementById('companyLink').value = '';
+      textPreview.textContent = 'Sent successfully!';
+      browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+      setTimeout(() => window.close(), 1500);
+    } else {
+      alert('Error: ' + (response ? response.error : 'Unknown error'));
+    }
   });
 
   loadSelection();
