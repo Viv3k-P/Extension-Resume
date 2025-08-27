@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = document.getElementById('submitBtn');
-  const addToJobBtn = document.getElementById('addToJobBtn');
+  const extractBtn = document.getElementById('extractBtn');
   const textPreview = document.getElementById('textPreview');
+  const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
     const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'currentTabUrl',
     ]);
     document.getElementById('companyLink').value = currentTabUrl;
+
     if (selectedText) {
       const maxLength = 100;
       textPreview.textContent =
@@ -17,12 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
       textPreview.textContent =
         'No text selected. Please select text and right-click to use this extension.';
     }
+
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const currentTab = tabs[0];
+    const { canExtract } = await browser.runtime.sendMessage({ action: 'canExtract', tabId: currentTab.id });
+    extractBtn.disabled = !canExtract;
   }
 
   function setLoading(isLoading) {
     submitBtn.textContent = isLoading ? 'Sending...' : 'Submit';
     submitBtn.disabled = isLoading;
-    addToJobBtn.disabled = isLoading;
+    extractBtn.disabled = isLoading;
   }
 
   async function sendToApi(data) {
@@ -55,28 +62,39 @@ document.addEventListener('DOMContentLoaded', () => {
     sendToApi(data);
   });
 
-  addToJobBtn.addEventListener('click', async () => {
+  extractBtn.addEventListener('click', async () => {
     const companyName = document.getElementById('companyName').value;
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
     const currentLink = currentTab.url;
     document.getElementById('companyLink').value = currentLink;
+
     const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
     setLoading(true);
+
+    // Prefer enhanced flow that may return a rating; background can also treat this as addJob.
     const response = await browser.runtime.sendMessage({
-      action: 'addJob',
+      action: 'extractAndRate',
       companyName,
       companyLink: currentLink,
       tabId: currentTab.id,
       fallbackText: selectedText,
     });
+
     setLoading(false);
+
     if (response?.success) {
       document.getElementById('companyName').value = '';
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
-      setTimeout(() => window.close(), 1500);
+
+      if (typeof response.rating === 'number') {
+        matchScore.textContent = `Match: ${response.rating}%`;
+        // Keep the popup open so the user can see the rating
+      } else {
+        setTimeout(() => window.close(), 1500);
+      }
     } else {
       alert('Error: ' + (response ? response.error : 'Unknown error'));
     }

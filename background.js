@@ -35,11 +35,12 @@ async function postData(data) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    const json = await response.json();
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
     showNotification('Success', 'Data successfully sent to API.');
-    return { success: true };
+    return { success: true, rating: json.rating };
   } catch (error) {
     console.error('Fetch error:', error);
     showNotification('Error', error.message);
@@ -79,19 +80,21 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     postData(message.data).then(sendResponse);
     return true;
   }
-  if (message.action === 'addJob') {
+
+  // Handle both names for the extraction flow.
+  if (message.action === 'extractAndRate' || message.action === 'addJob') {
     browser.tabs
       .executeScript(message.tabId, {
         code: '(' + extractJobDescription.toString() + ')();',
       })
       .then(async (results) => {
         let text = (results && results[0] ? results[0] : '').trim();
+
         if (!text) {
-          const { selectedText = '' } = await browser.storage.local.get([
-            'selectedText',
-          ]);
+          const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
           text = selectedText.trim();
         }
+
         if (!text) {
           sendResponse({
             success: false,
@@ -99,12 +102,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           return;
         }
+
         const data = {
           text,
           companyName: message.companyName,
           companyLink: message.companyLink,
           type: 'add-to-job',
         };
+
         const result = await postData(data);
         if (result.success) {
           browser.storage.local.remove(['selectedText', 'currentTabUrl']);
@@ -117,10 +122,28 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return true;
   }
+
+  if (message.action === 'canExtract') {
+    browser.tabs
+      .executeScript(message.tabId, {
+        code: '(' + extractJobDescription.toString() + ')();',
+      })
+      .then((results) => {
+        const text = (results && results[0] ? results[0] : '').trim();
+        sendResponse({ canExtract: !!text });
+      })
+      .catch((error) => {
+        console.error('Execution error:', error);
+        sendResponse({ canExtract: false });
+      });
+    return true;
+  }
+
   if (message.action === 'clearSelectedText') {
     browser.storage.local.set({ selectedText: '' }).then(() => sendResponse({ success: true }));
     return true;
   }
+
   return false;
 });
 
