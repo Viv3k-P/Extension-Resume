@@ -80,19 +80,21 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     postData(message.data).then(sendResponse);
     return true;
   }
-  if (message.action === 'extractAndRate') {
+
+  // Handle both names for the extraction flow.
+  if (message.action === 'extractAndRate' || message.action === 'addJob') {
     browser.tabs
       .executeScript(message.tabId, {
         code: '(' + extractJobDescription.toString() + ')();',
       })
       .then(async (results) => {
         let text = (results && results[0] ? results[0] : '').trim();
+
         if (!text) {
-          const { selectedText = '' } = await browser.storage.local.get([
-            'selectedText',
-          ]);
+          const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
           text = selectedText.trim();
         }
+
         if (!text) {
           sendResponse({
             success: false,
@@ -100,12 +102,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           return;
         }
+
         const data = {
           text,
           companyName: message.companyName,
           companyLink: message.companyLink,
           type: 'add-to-job',
         };
+
         const result = await postData(data);
         if (result.success) {
           browser.storage.local.remove(['selectedText', 'currentTabUrl']);
@@ -118,6 +122,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return true;
   }
+
   if (message.action === 'canExtract') {
     browser.tabs
       .executeScript(message.tabId, {
@@ -133,10 +138,12 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return true;
   }
+
   if (message.action === 'clearSelectedText') {
     browser.storage.local.set({ selectedText: '' }).then(() => sendResponse({ success: true }));
     return true;
   }
+
   return false;
 });
 

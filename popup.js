@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'currentTabUrl',
     ]);
     document.getElementById('companyLink').value = currentTabUrl;
+
     if (selectedText) {
       const maxLength = 100;
       textPreview.textContent =
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
       textPreview.textContent =
         'No text selected. Please select text and right-click to use this extension.';
     }
+
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
     const { canExtract } = await browser.runtime.sendMessage({ action: 'canExtract', tabId: currentTab.id });
@@ -66,8 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTab = tabs[0];
     const currentLink = currentTab.url;
     document.getElementById('companyLink').value = currentLink;
+
     const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
     setLoading(true);
+
+    // Prefer enhanced flow that may return a rating; background can also treat this as addJob.
     const response = await browser.runtime.sendMessage({
       action: 'extractAndRate',
       companyName,
@@ -75,14 +80,20 @@ document.addEventListener('DOMContentLoaded', () => {
       tabId: currentTab.id,
       fallbackText: selectedText,
     });
+
     setLoading(false);
+
     if (response?.success) {
       document.getElementById('companyName').value = '';
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+
       if (typeof response.rating === 'number') {
         matchScore.textContent = `Match: ${response.rating}%`;
+        // Keep the popup open so the user can see the rating
+      } else {
+        setTimeout(() => window.close(), 1500);
       }
     } else {
       alert('Error: ' + (response ? response.error : 'Unknown error'));
