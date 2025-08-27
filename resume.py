@@ -1,5 +1,6 @@
 import os
 import csv
+import re
 from datetime import date, datetime
 from openai import OpenAI
 
@@ -210,6 +211,27 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
+def rate_match(resume_text: str, job_description: str) -> int:
+    prompt = (
+        "Resume:\n" + resume_text +
+        "\n\nJob Description:\n" + job_description +
+        "\n\nRate how well the resume matches the job description as a percentage from 0 to 100. "
+        "Respond with only the number."
+    )
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You return only an integer between 0 and 100."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=10,
+        temperature=0,
+    )
+    text = response.choices[0].message.content.strip()
+    numbers = re.findall(r"\d+", text)
+    return int(numbers[0]) if numbers else 0
+
+
 # ---------------------------------------
 # Resume processing
 # ---------------------------------------
@@ -218,7 +240,7 @@ def process_resume(job_description: str, company_name: str, company_link: str,
                    exp_file: str = EXP_FILE_NORMAL,
                    tech_file: str = TECH_FILE,
                    script: str = SCRIPT_NORMAL,
-                   system_message_exp: str = SYSTEM_MESSAGE_EXP_NORMAL) -> None:
+                   system_message_exp: str = SYSTEM_MESSAGE_EXP_NORMAL) -> int:
     old_exp = grab_old_resume(exp_file)
     ask_exp = f"JOB DESCRIPTION: {job_description}\nCurrent Resume Experience: {old_exp}"
     new_exp = grab_new_resume(ask_exp, system_message_exp)
@@ -240,12 +262,14 @@ def process_resume(job_description: str, company_name: str, company_link: str,
     add_to_csv(company_name, company_link)
     print(f"Resume saved as {new_filename} and added to tracking CSV")
 
-
-def get_job_description_normal(job_description: str, company_name: str = "Unknown", company_link: str = "") -> None:
-    process_resume(job_description, company_name, company_link)
+    return rate_match(new_exp, job_description)
 
 
-def get_job_description_intern(job_description: str, company_name: str = "Unknown", company_link: str = "") -> None:
-    process_resume(job_description, company_name, company_link,
-                   script=SCRIPT_INTERN,
-                   system_message_exp=SYSTEM_MESSAGE_EXP_INTERNSHIP)
+def get_job_description_normal(job_description: str, company_name: str = "Unknown", company_link: str = "") -> int:
+    return process_resume(job_description, company_name, company_link)
+
+
+def get_job_description_intern(job_description: str, company_name: str = "Unknown", company_link: str = "") -> int:
+    return process_resume(job_description, company_name, company_link,
+                          script=SCRIPT_INTERN,
+                          system_message_exp=SYSTEM_MESSAGE_EXP_INTERNSHIP)

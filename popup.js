@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = document.getElementById('submitBtn');
-  const addToJobBtn = document.getElementById('addToJobBtn');
+  const extractBtn = document.getElementById('extractBtn');
   const textPreview = document.getElementById('textPreview');
+  const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
     const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
@@ -17,12 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
       textPreview.textContent =
         'No text selected. Please select text and right-click to use this extension.';
     }
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const currentTab = tabs[0];
+    const { canExtract } = await browser.runtime.sendMessage({ action: 'canExtract', tabId: currentTab.id });
+    extractBtn.disabled = !canExtract;
   }
 
   function setLoading(isLoading) {
     submitBtn.textContent = isLoading ? 'Sending...' : 'Submit';
     submitBtn.disabled = isLoading;
-    addToJobBtn.disabled = isLoading;
+    extractBtn.disabled = isLoading;
   }
 
   async function sendToApi(data) {
@@ -55,19 +60,33 @@ document.addEventListener('DOMContentLoaded', () => {
     sendToApi(data);
   });
 
-  addToJobBtn.addEventListener('click', async () => {
+  extractBtn.addEventListener('click', async () => {
     const companyName = document.getElementById('companyName').value;
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const currentLink = tabs[0].url;
+    const currentTab = tabs[0];
+    const currentLink = currentTab.url;
     document.getElementById('companyLink').value = currentLink;
-    await browser.runtime.sendMessage({ action: 'clearSelectedText' });
-    const data = {
-      text: '',
+    const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
+    setLoading(true);
+    const response = await browser.runtime.sendMessage({
+      action: 'extractAndRate',
       companyName,
       companyLink: currentLink,
-      type: 'add-to-job',
-    };
-    sendToApi(data);
+      tabId: currentTab.id,
+      fallbackText: selectedText,
+    });
+    setLoading(false);
+    if (response?.success) {
+      document.getElementById('companyName').value = '';
+      document.getElementById('companyLink').value = '';
+      textPreview.textContent = 'Sent successfully!';
+      browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+      if (typeof response.rating === 'number') {
+        matchScore.textContent = `Match: ${response.rating}%`;
+      }
+    } else {
+      alert('Error: ' + (response ? response.error : 'Unknown error'));
+    }
   });
 
   loadSelection();

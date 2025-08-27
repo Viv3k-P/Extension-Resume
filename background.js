@@ -35,16 +35,38 @@ async function postData(data) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    const json = await response.json();
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
     showNotification('Success', 'Data successfully sent to API.');
-    return { success: true };
+    return { success: true, rating: json.rating };
   } catch (error) {
     console.error('Fetch error:', error);
     showNotification('Error', error.message);
     return { success: false, error: error.message };
   }
+}
+
+function extractJobDescription() {
+  const selectors = [
+    'article',
+    'section',
+    'div[id*="job"]',
+    'div[class*="job"]',
+    'div[id*="description"]',
+    'div[class*="description"]',
+  ];
+  let best = '';
+  selectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      const text = el.innerText.trim();
+      if (text.length > best.length) {
+        best = text;
+      }
+    });
+  });
+  return best;
 }
 
 browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -56,6 +78,59 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sendToApi') {
     postData(message.data).then(sendResponse);
+    return true;
+  }
+  if (message.action === 'extractAndRate') {
+    browser.tabs
+      .executeScript(message.tabId, {
+        code: '(' + extractJobDescription.toString() + ')();',
+      })
+      .then(async (results) => {
+        let text = (results && results[0] ? results[0] : '').trim();
+        if (!text) {
+          const { selectedText = '' } = await browser.storage.local.get([
+            'selectedText',
+          ]);
+          text = selectedText.trim();
+        }
+        if (!text) {
+          sendResponse({
+            success: false,
+            error: 'No job description found. Please select text manually.',
+          });
+          return;
+        }
+        const data = {
+          text,
+          companyName: message.companyName,
+          companyLink: message.companyLink,
+          type: 'add-to-job',
+        };
+        const result = await postData(data);
+        if (result.success) {
+          browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+        }
+        sendResponse(result);
+      })
+      .catch((error) => {
+        console.error('Execution error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+  if (message.action === 'canExtract') {
+    browser.tabs
+      .executeScript(message.tabId, {
+        code: '(' + extractJobDescription.toString() + ')();',
+      })
+      .then((results) => {
+        const text = (results && results[0] ? results[0] : '').trim();
+        sendResponse({ canExtract: !!text });
+      })
+      .catch((error) => {
+        console.error('Execution error:', error);
+        sendResponse({ canExtract: false });
+      });
     return true;
   }
   if (message.action === 'clearSelectedText') {

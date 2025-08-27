@@ -37,6 +37,10 @@
       font-size: 13px;
       width: 100%;
     }
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
     button:hover {
       background-color: #3367d6;
     }
@@ -77,8 +81,8 @@
     </select>
   </div>
   <button id="submitBtn">Submit</button>
-  <button id="addToJobBtn">Add Job</button>
-
+  <button id="extractBtn" disabled>Extract &amp; Match</button>
+  <div id="matchScore" style="margin-top:10px;font-weight:bold;"></div>
 
   <script src="popup.js"></script>
 </body>

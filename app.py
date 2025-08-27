@@ -26,14 +26,14 @@ def save_text():
         return jsonify(status="job added to CSV"), 200
 
     if resume_type == "normal-resume":
-        get_job_description_normal(text, company_name, company_link)
+        rating = get_job_description_normal(text, company_name, company_link)
     elif resume_type == "intern-resume":
-        get_job_description_intern(text, company_name, company_link)
+        rating = get_job_description_intern(text, company_name, company_link)
     else:
         print("Unknown resume type. Skipping.")
         return jsonify(status="invalid resume type"), 400
 
-    return jsonify(status="processed successfully"), 200
+    return jsonify(status="processed successfully", rating=rating), 200
 
 if __name__ == '__main__':
     app.run(port=5000)
