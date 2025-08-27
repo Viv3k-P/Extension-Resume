@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Text Highlighter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      width: 300px;
+      margin: 0;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 13px;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    h2 {
+      font-size: 16px;
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+    .text-preview {
+      font-size: 12px;
+      margin-bottom: 12px;
+      background-color: #f5f5f5;
+      padding: 8px;
+      border-radius: 4px;
+      max-height: 60px;
+      overflow-y: auto;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h2>Send Text to API</h2>
+  <div class="text-preview" id="textPreview">Loading selected text...</div>
+  <div class="form-group">
+    <label for="companyName">Company Name:</label>
+    <input type="text" id="companyName" placeholder="Enter company name">
+  </div>
+  <div class="form-group">
+    <label for="companyLink">Company Link:</label>
+    <input type="text" id="companyLink" placeholder="Enter company link">
+  </div>
+  <div class="form-group">
+    <label for="resumeType">Resume Type:</label>
+    <select id="resumeType">
+      <option value="normal-resume">Normal Resume</option>
+      <option value="intern-resume">Intern Resume</option>
+      <option value="normal-cap-resume">Normal Cap Resume</option>
+    </select>
+  </div>
+  <button id="submitBtn">Submit</button>
+  <button id="addToJobBtn">Add Job</button>
+
+
+  <script src="popup.js"></script>
+</body>
+</html>
