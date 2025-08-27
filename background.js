@@ -1,70 +1,68 @@
-// Create context menu item
-browser.contextMenus.create({
-  id: "send-to-api",
-  title: "Send Selected Text to API",
-  contexts: ["selection"]
-}, () => {
-  if (browser.runtime.lastError) {
-    console.error(browser.runtime.lastError);
-  } else {
-    console.log("Context menu item created");
-  }
-});
+function createContextMenu() {
+  browser.contextMenus.create(
+    {
+      id: 'send-to-api',
+      title: 'Send Selected Text to API',
+      contexts: ['selection'],
+    },
+    () => browser.runtime.lastError && console.error(browser.runtime.lastError)
+  );
+}
 
-// Handle context menu clicks
-browser.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "send-to-api") {
-    console.log("Selected text:", info.selectionText);
-    // Save selected text and tab URL
-    browser.storage.local.set({
+function storeSelection(info, tab) {
+  browser.storage.local.set(
+    {
       selectedText: info.selectionText,
-      currentTabUrl: tab.url
-    }, () => {
-      browser.browserAction.openPopup();
+      currentTabUrl: tab.url,
+    },
+    () => browser.browserAction.openPopup()
+  );
+}
+
+function showNotification(title, message) {
+  browser.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon.png',
+    title,
+    message,
+  });
+}
+
+async function postData(data) {
+  try {
+    const response = await fetch('http://localhost:5000/save-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    showNotification('Success', 'Data successfully sent to API.');
+    return { success: true };
+  } catch (error) {
+    console.error('Fetch error:', error);
+    showNotification('Error', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'send-to-api') {
+    storeSelection(info, tab);
   }
 });
 
-// Listen for messages from popup.js
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "sendToApi") {
-    console.log("Sending data to API:", message.data);
-    fetch("http://localhost:5000/save-text", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(message.data)
-    })
-    .then(response => {
-      if (response.ok) {
-        console.log("Data successfully sent to API.");
-        browser.notifications.create({
-          type: "basic",
-          iconUrl: "icon.png",
-          title: "Success",
-          message: "Data successfully sent to API."
-        });
-        sendResponse({ success: true });
-      } else {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-    })
-    .catch(error => {
-      console.error("Fetch error:", error);
-      browser.notifications.create({
-        type: "basic",
-        iconUrl: "icon.png",
-        title: "Error",
-        message: error.message
-      });
-      sendResponse({ success: false, error: error.message });
-    });
-    return true; // async response
+  if (message.action === 'sendToApi') {
+    postData(message.data).then(sendResponse);
+    return true;
   }
-
-  if (message.action === "clearSelectedText") {
-    browser.storage.local.set({ selectedText: '' });
-    sendResponse({ success: true });
+  if (message.action === 'clearSelectedText') {
+    browser.storage.local.set({ selectedText: '' }).then(() => sendResponse({ success: true }));
+    return true;
   }
+  return false;
 });
+
+createContextMenu();
