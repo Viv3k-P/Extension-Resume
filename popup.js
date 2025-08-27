@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('companyLink').value = currentLink;
 
     const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
+    const resumeType = document.getElementById('resumeType').value;
     setLoading(true);
 
     // Prefer enhanced flow that may return a rating; background can also treat this as addJob.
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       companyName,
       companyLink: currentLink,
       tabId: currentTab.id,
+      resumeType,
       fallbackText: selectedText,
     });
 
