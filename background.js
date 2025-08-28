@@ -39,8 +39,9 @@ async function postData(data) {
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
+    const rating = Number(json.rating);
     showNotification('Success', 'Data successfully sent to API.');
-    return { success: true, rating: json.rating };
+    return { success: true, rating };
   } catch (error) {
     console.error('Fetch error:', error);
     showNotification('Error', error.message);
@@ -107,7 +108,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           text,
           companyName: message.companyName,
           companyLink: message.companyLink,
-          type: 'add-to-job',
+          type: message.resumeType || 'normal-resume',
         };
 
         const result = await postData(data);
