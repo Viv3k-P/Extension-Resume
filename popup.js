@@ -5,10 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
-    const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
-      'selectedText',
-      'currentTabUrl',
-    ]);
+    const {
+      selectedText = '',
+      currentTabUrl = '',
+      lastMatchScore,
+    } = await browser.storage.local.get(['selectedText', 'currentTabUrl', 'lastMatchScore']);
     document.getElementById('companyLink').value = currentTabUrl;
 
     if (selectedText) {
@@ -18,6 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       textPreview.textContent =
         'No text selected. Please select text and right-click to use this extension.';
+    }
+
+    if (typeof lastMatchScore === 'number') {
+      matchScore.textContent = `Match: ${lastMatchScore}%`;
+    } else {
+      matchScore.textContent = '';
     }
 
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -33,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function sendToApi(data) {
+    await browser.storage.local.remove('lastMatchScore');
+    matchScore.textContent = '';
     setLoading(true);
     const response = await browser.runtime.sendMessage({ action: 'sendToApi', data });
     setLoading(false);
@@ -41,7 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
-      setTimeout(() => window.close(), 1500);
+
+      if (typeof response.rating === 'number') {
+        matchScore.textContent = `Match: ${response.rating}%`;
+        await browser.storage.local.set({ lastMatchScore: response.rating });
+        // Keep the popup open so the user can see the rating
+      } else {
+        setTimeout(() => window.close(), 1500);
+      }
     } else {
       alert('Error: ' + (response ? response.error : 'Unknown error'));
     }
@@ -63,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   extractBtn.addEventListener('click', async () => {
+    await browser.storage.local.remove('lastMatchScore');
+    matchScore.textContent = '';
     const companyName = document.getElementById('companyName').value;
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
@@ -70,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('companyLink').value = currentLink;
 
     const { selectedText = '' } = await browser.storage.local.get(['selectedText']);
+    const resumeType = document.getElementById('resumeType').value;
     setLoading(true);
 
     // Prefer enhanced flow that may return a rating; background can also treat this as addJob.
@@ -78,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
       companyName,
       companyLink: currentLink,
       tabId: currentTab.id,
+      resumeType,
       fallbackText: selectedText,
     });
 
@@ -91,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (typeof response.rating === 'number') {
         matchScore.textContent = `Match: ${response.rating}%`;
+        await browser.storage.local.set({ lastMatchScore: response.rating });
         // Keep the popup open so the user can see the rating
       } else {
         setTimeout(() => window.close(), 1500);

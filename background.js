@@ -107,7 +107,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           text,
           companyName: message.companyName,
           companyLink: message.companyLink,
-          type: 'add-to-job',
+          type: message.resumeType || 'normal-resume',
         };
 
         const result = await postData(data);
