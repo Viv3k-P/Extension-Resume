@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
+    const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
+      'selectedText',
+      'currentTabUrl',
+    ]);
     const {
       selectedText = '',
       currentTabUrl = '',
@@ -21,8 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'No text selected. Please select text and right-click to use this extension.';
     }
 
-    if (typeof lastMatchScore === 'number') {
-      matchScore.textContent = `Match: ${lastMatchScore}%`;
+    const storedRating = Number(lastMatchScore);
+    if (!Number.isNaN(storedRating)) {
+      matchScore.textContent = `Match: ${storedRating}%`;
     } else {
       matchScore.textContent = '';
     }
@@ -50,10 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+      setTimeout(() => window.close(), 1500);
 
-      if (typeof response.rating === 'number') {
-        matchScore.textContent = `Match: ${response.rating}%`;
-        await browser.storage.local.set({ lastMatchScore: response.rating });
+      const rating = Number(response.rating);
+      if (!Number.isNaN(rating)) {
+        matchScore.textContent = `Match: ${rating}%`;
+        await browser.storage.local.set({ lastMatchScore: rating });
         // Keep the popup open so the user can see the rating
       } else {
         setTimeout(() => window.close(), 1500);
@@ -111,7 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (typeof response.rating === 'number') {
         matchScore.textContent = `Match: ${response.rating}%`;
-        await browser.storage.local.set({ lastMatchScore: response.rating });
+      const rating = Number(response.rating);
+      if (!Number.isNaN(rating)) {
+        matchScore.textContent = `Match: ${rating}%`;
+        await browser.storage.local.set({ lastMatchScore: rating });
         // Keep the popup open so the user can see the rating
       } else {
         setTimeout(() => window.close(), 1500);
