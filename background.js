@@ -42,7 +42,11 @@ async function postData(data) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
     const rating = Number(json.rating);
-    showNotification('Success', 'Data successfully sent to API.');
+    if (!Number.isNaN(rating)) {
+      showNotification('Match Score', `Your resume matches ${rating}%`);
+    } else {
+      showNotification('Success', 'Data successfully sent to API.');
+    }
     return { success: true, rating };
   } catch (error) {
     console.error('Fetch error:', error);
