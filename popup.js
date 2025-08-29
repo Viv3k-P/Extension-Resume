@@ -5,15 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
-    const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
-      'selectedText',
-      'currentTabUrl',
-    ]);
-    const {
-      selectedText = '',
-      currentTabUrl = '',
-      lastMatchScore,
-    } = await browser.storage.local.get(['selectedText', 'currentTabUrl', 'lastMatchScore']);
+    const { selectedText = '', currentTabUrl = '', lastMatchScore } =
+      await browser.storage.local.get(['selectedText', 'currentTabUrl', 'lastMatchScore']);
     document.getElementById('companyLink').value = currentTabUrl;
 
     if (selectedText) {
@@ -26,11 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const storedRating = Number(lastMatchScore);
-    if (!Number.isNaN(storedRating)) {
-      matchScore.textContent = `Match: ${storedRating}%`;
-    } else {
-      matchScore.textContent = '';
-    }
+    matchScore.textContent = !Number.isNaN(storedRating) ? `Match: ${storedRating}%` : '';
 
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
@@ -50,12 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setLoading(true);
     const response = await browser.runtime.sendMessage({ action: 'sendToApi', data });
     setLoading(false);
+
     if (response?.success) {
       document.getElementById('companyName').value = '';
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
-      setTimeout(() => window.close(), 1500);
 
       const rating = Number(response.rating);
       if (!Number.isNaN(rating)) {
@@ -116,8 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
 
-      if (typeof response.rating === 'number') {
-        matchScore.textContent = `Match: ${response.rating}%`;
       const rating = Number(response.rating);
       if (!Number.isNaN(rating)) {
         matchScore.textContent = `Match: ${rating}%`;
