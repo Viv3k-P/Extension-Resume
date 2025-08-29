@@ -6,7 +6,8 @@
     "contextMenus",
     "activeTab",
     "notifications",
-    "storage"
+    "storage",
+    "http://localhost:5000/*"
   ],
   "background": {
     "scripts": ["background.js"]

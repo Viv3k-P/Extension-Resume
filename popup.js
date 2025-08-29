@@ -1,3 +1,5 @@
+var browser = globalThis.browser || globalThis.chrome;
+
 document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = document.getElementById('submitBtn');
   const extractBtn = document.getElementById('extractBtn');

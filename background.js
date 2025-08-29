@@ -1,3 +1,5 @@
+var browser = globalThis.browser || globalThis.chrome;
+
 function createContextMenu() {
   browser.contextMenus.create(
     {
