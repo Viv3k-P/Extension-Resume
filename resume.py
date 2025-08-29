@@ -240,18 +240,28 @@ def process_resume(job_description: str, company_name: str, company_link: str,
                    exp_file: str = EXP_FILE_NORMAL,
                    tech_file: str = TECH_FILE,
                    script: str = SCRIPT_NORMAL,
-                   system_message_exp: str = SYSTEM_MESSAGE_EXP_NORMAL) -> int:
+                   system_message_exp: str = SYSTEM_MESSAGE_EXP_NORMAL,
+                   variants: int = 3) -> int:
     old_exp = grab_old_resume(exp_file)
     ask_exp = f"JOB DESCRIPTION: {job_description}\nCurrent Resume Experience: {old_exp}"
-    new_exp = grab_new_resume(ask_exp, system_message_exp)
-    save_latex_output(new_exp, company_name)
+
+    best_exp = ""
+    best_score = -1
+    for _ in range(variants):
+        candidate_exp = grab_new_resume(ask_exp, system_message_exp)
+        score = rate_match(candidate_exp, job_description)
+        if score > best_score:
+            best_score = score
+            best_exp = candidate_exp
+
+    save_latex_output(best_exp, company_name)
 
     old_tech = grab_old_resume(tech_file)
     ask_tech = f"JOB DESCRIPTION: {job_description}\nCurrent Resume Skills: {old_tech}"
     grab_new_resume(ask_tech, SYSTEM_MESSAGE_TECH)
 
     save_job_description(job_description, company_name)
-    write_back("exp2.tex", new_exp)
+    write_back("exp2.tex", best_exp)
     os.system(script)
 
     safe_name = sanitize_filename(company_name)
@@ -262,14 +272,15 @@ def process_resume(job_description: str, company_name: str, company_link: str,
     add_to_csv(company_name, company_link)
     print(f"Resume saved as {new_filename} and added to tracking CSV")
 
-    return rate_match(new_exp, job_description)
+    return best_score
 
 
-def get_job_description_normal(job_description: str, company_name: str = "Unknown", company_link: str = "") -> int:
-    return process_resume(job_description, company_name, company_link)
+def get_job_description_normal(job_description: str, company_name: str = "Unknown", company_link: str = "", variants: int = 3) -> int:
+    return process_resume(job_description, company_name, company_link, variants=variants)
 
 
-def get_job_description_intern(job_description: str, company_name: str = "Unknown", company_link: str = "") -> int:
+def get_job_description_intern(job_description: str, company_name: str = "Unknown", company_link: str = "", variants: int = 3) -> int:
     return process_resume(job_description, company_name, company_link,
                           script=SCRIPT_INTERN,
-                          system_message_exp=SYSTEM_MESSAGE_EXP_INTERNSHIP)
+                          system_message_exp=SYSTEM_MESSAGE_EXP_INTERNSHIP,
+                          variants=variants)

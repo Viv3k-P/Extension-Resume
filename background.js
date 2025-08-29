@@ -58,24 +58,70 @@ async function postData(data) {
 }
 
 function extractJobDescription() {
-  const selectors = [
-    'article',
-    'section',
-    'div[id*="job"]',
-    'div[class*="job"]',
-    'div[id*="description"]',
-    'div[class*="description"]',
+  const headingKeywords = [
+    'responsibilities',
+    'job description',
+    "what you'll do",
+    'requirements',
+    'role',
   ];
-  let best = '';
-  selectors.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((el) => {
-      const text = el.innerText.trim();
-      if (text.length > best.length) {
-        best = text;
+  const ignoreHeadings = ['about us', 'about the company'];
+  const sections = [];
+
+  document
+    .querySelectorAll('h1, h2, h3, h4, h5, strong, b')
+    .forEach((heading) => {
+      const text = heading.innerText.toLowerCase();
+      if (headingKeywords.some((k) => text.includes(k))) {
+        let content = '';
+        let el = heading.nextElementSibling;
+        while (el) {
+          const elText = el.innerText.trim();
+          const lower = elText.toLowerCase();
+          if (
+            !elText ||
+            headingKeywords.some((k) => lower.includes(k)) ||
+            ignoreHeadings.some((k) => lower.includes(k))
+          ) {
+            break;
+          }
+          content += elText + '\n';
+          el = el.nextElementSibling;
+        }
+        if (content) sections.push(content.trim());
       }
     });
+
+  let best = sections.reduce(
+    (a, b) => (b.length > a.length ? b : a),
+    ''
+  );
+
+  if (!best) {
+    const selectors = [
+      'article',
+      'section',
+      'div[id*="job"]',
+      'div[class*="job"]',
+      'div[id*="description"]',
+      'div[class*="description"]',
+    ];
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => {
+        const text = el.innerText.trim();
+        if (text.length > best.length) {
+          best = text;
+        }
+      });
+    });
+  }
+
+  ignoreHeadings.forEach((term) => {
+    const regex = new RegExp(term, 'ig');
+    best = best.replace(regex, '');
   });
-  return best;
+
+  return best.trim();
 }
 
 browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -104,22 +150,30 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           text = selectedText.trim();
         }
 
-        if (!text) {
-          sendResponse({
-            success: false,
-            error: 'No job description found. Please select text manually.',
-          });
-          return;
-        }
-
-        const data = {
-          text,
+        let payload = {
           companyName: message.companyName,
           companyLink: message.companyLink,
           type: message.resumeType || 'normal-resume',
         };
 
-        const result = await postData(data);
+        if (!text) {
+          const htmlResults = await browser.tabs.executeScript(message.tabId, {
+            code: 'document.documentElement.outerHTML',
+          });
+          const html = (htmlResults && htmlResults[0] ? htmlResults[0] : '').trim();
+          if (!html) {
+            sendResponse({
+              success: false,
+              error: 'No job description found. Please select text manually.',
+            });
+            return;
+          }
+          payload.html = html;
+        } else {
+          payload.text = text;
+        }
+
+        const result = await postData(payload);
         if (result.success) {
           browser.storage.local.remove(['selectedText', 'currentTabUrl']);
         }
