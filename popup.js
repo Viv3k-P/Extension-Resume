@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchScore = document.getElementById('matchScore');
 
   async function loadSelection() {
+    const { selectedText = '', currentTabUrl = '' } = await browser.storage.local.get([
+      'selectedText',
+      'currentTabUrl',
+    ]);
     const {
       selectedText = '',
       currentTabUrl = '',
@@ -51,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('companyLink').value = '';
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
+      setTimeout(() => window.close(), 1500);
 
       const rating = Number(response.rating);
       if (!Number.isNaN(rating)) {
@@ -111,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
       textPreview.textContent = 'Sent successfully!';
       browser.storage.local.remove(['selectedText', 'currentTabUrl']);
 
+      if (typeof response.rating === 'number') {
+        matchScore.textContent = `Match: ${response.rating}%`;
       const rating = Number(response.rating);
       if (!Number.isNaN(rating)) {
         matchScore.textContent = `Match: ${rating}%`;
