@@ -43,8 +43,10 @@ async function postData(data) {
     }
     const rating = Number(json.rating);
     if (!Number.isNaN(rating)) {
+      browser.storage.local.set({ lastMatchScore: rating });
       showNotification('Match Score', `Your resume matches ${rating}%`);
     } else {
+      browser.storage.local.remove('lastMatchScore');
       showNotification('Success', 'Data successfully sent to API.');
     }
     return { success: true, rating };
